@@ -31,7 +31,16 @@ enum flags {
     f_HALT
 };
 
+std::string flagname(int flag) {
+    std::string flagnames[4] = {"EQ", "GT", "LT", "HALT"};
+    return flagnames[flag];
+}
+
 int opcode(std::string(s)) {
+    std::string s_lower;
+    for (int i = 0; i < s.length(); i++) {
+        s_lower += std::tolower(s.at(i), std::locale(""));
+    }
     std::map<std::string, int> opcodes = {
         {"ldr" ,  1},
         {"str" ,  2},
@@ -52,19 +61,19 @@ int opcode(std::string(s)) {
         {"lsr" , 17},
         {"halt", 18},
     };
-    return opcodes[s];
+    return opcodes[s_lower];
 }
 
 unsigned int operand2(std::string operand, unsigned int *registers) {
     if (operand.substr(0, 1) == "#") {
         return std::stoi(operand.substr(1));
     }
-    else if (operand.substr(0, 1) == "R") {
+    else { // if (operand.substr(0, 1) == "R")
         return registers[std::stoi(operand.substr(1))];
     }
 }
 
-bool parse(std::string line, unsigned int *registers, unsigned int *memory, unsigned int *flag) {
+void parse(std::string line, unsigned int *registers, unsigned int *memory, unsigned int *flag) {
     std::string instruction[4] = {"","","",""};
     std::string delimiter = " ";
     int token_counter = 0;
@@ -74,18 +83,23 @@ bool parse(std::string line, unsigned int *registers, unsigned int *memory, unsi
         line.erase(0, delimiter_position + delimiter.length());
         token_counter += 1;
     }
-    
+    std::cout << opcode(instruction[0]) << std::endl;
     switch (opcode(instruction[0])) {
         case LDR:
             registers[std::stoi(instruction[1].substr(1))] = memory[std::stoi(instruction[2])];
+            break;
         case STR:
             memory[std::stoi(instruction[2])] = registers[std::stoi(instruction[1].substr(1))];
+            break;
         case ADD:
             registers[std::stoi(instruction[1].substr(1))] = registers[std::stoi(instruction[2].substr(1))] + operand2(instruction[3], registers);
+            break;
         case SUB:
             registers[std::stoi(instruction[1].substr(1))] = registers[std::stoi(instruction[2].substr(1))] - operand2(instruction[3], registers);
+            break;
         case MOV:
             registers[std::stoi(instruction[1].substr(1))] = operand2(instruction[2], registers);
+            break;
         case CMP:
             if (registers[std::stoi(instruction[1].substr(1))] == operand2(instruction[2], registers)) {
                 *flag = f_EQ;
@@ -96,6 +110,7 @@ bool parse(std::string line, unsigned int *registers, unsigned int *memory, unsi
             else {
                 *flag = f_LT;
             }
+            break;
         case B:
             // skip implementation for now;
         case BEQ:
@@ -108,32 +123,56 @@ bool parse(std::string line, unsigned int *registers, unsigned int *memory, unsi
             // skip implementation for now;
         case AND:
             registers[std::stoi(instruction[1].substr(1))] = registers[std::stoi(instruction[2].substr(1))] & operand2(instruction[3], registers);
+            break;
         case ORR:
             registers[std::stoi(instruction[1].substr(1))] = registers[std::stoi(instruction[2].substr(1))] | operand2(instruction[3], registers);
+            break;
         case EOR:
             registers[std::stoi(instruction[1].substr(1))] = registers[std::stoi(instruction[2].substr(1))] ^ operand2(instruction[3], registers);
+            break;
         case MVN:
             registers[std::stoi(instruction[1].substr(1))] = ~(operand2(instruction[2], registers));
+            break;
         case LSL:
             registers[std::stoi(instruction[1].substr(1))] = registers[std::stoi(instruction[2].substr(1))] << operand2(instruction[3], registers);
+            break;
         case LSR:
             registers[std::stoi(instruction[1].substr(1))] = registers[std::stoi(instruction[2].substr(1))] >> operand2(instruction[3], registers);
+            break;
         case HALT:
-            *flag = 3;
+            std::cout << "ici" << std::endl;
+            *flag = f_HALT;
     }
-    
+
+}
+
+std::string m2s(unsigned int *m, unsigned int sz) {
+    std::string s;
+    for (int i = 0; i < sz; i++) {
+        s += std::to_string(m[i]);
+        s += " | ";
+    }
+    return s;
 }
 
 int main()
 {
     std::cout << "AQA Assembly Interpreter\n";
-    unsigned int registers[13]; 
+    unsigned int registers[13] = {0,0,0,0,0,0,0,0,0,0,0,0,0};
     unsigned int memory[256];
-    unsigned int flag;
+    for(int i = 0; i < 256; i++) {
+        memory[i] = 0;
+    }
+    unsigned int flag = 0;
     std::ifstream file("test.aqaasm");
     for (std::string line; std::getline(file, line);) {
+        std::cout << line << std::endl;
         parse(line, registers, memory, &flag);
+        std::cout << "Registers: " << m2s(registers, 13) << std::endl;
+        std::cout << "Memory: " << m2s(memory, 256) << std::endl;
+        std::cout << "Flag: " << flagname(flag) << std::endl;
         if (flag == f_HALT) {
+            std::cout << "halting due to instruction";
             break;
         }
     }
