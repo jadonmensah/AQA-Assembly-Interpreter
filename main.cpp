@@ -3,6 +3,8 @@
 #include <string>
 #include <map>
 
+// TODO implement branching, clean up code.
+
 enum operations {
     LDR = 1,
     STR,
@@ -69,7 +71,7 @@ unsigned int operand2(std::string operand, unsigned int *registers) {
         return std::stoi(operand.substr(1));
     }
     else { // if (operand.substr(0, 1) == "R")
-        return registers[std::stoi(operand.substr(1))];
+        return registers[std::stoi(operand.substr(1,1))];
     }
 }
 
@@ -83,7 +85,6 @@ void parse(std::string line, unsigned int *registers, unsigned int *memory, unsi
         line.erase(0, delimiter_position + delimiter.length());
         token_counter += 1;
     }
-    std::cout << opcode(instruction[0]) << std::endl;
     switch (opcode(instruction[0])) {
         case LDR:
             registers[std::stoi(instruction[1].substr(1))] = memory[std::stoi(instruction[2])];
@@ -98,7 +99,10 @@ void parse(std::string line, unsigned int *registers, unsigned int *memory, unsi
             registers[std::stoi(instruction[1].substr(1))] = registers[std::stoi(instruction[2].substr(1))] - operand2(instruction[3], registers);
             break;
         case MOV:
+
+
             registers[std::stoi(instruction[1].substr(1))] = operand2(instruction[2], registers);
+
             break;
         case CMP:
             if (registers[std::stoi(instruction[1].substr(1))] == operand2(instruction[2], registers)) {
@@ -140,7 +144,7 @@ void parse(std::string line, unsigned int *registers, unsigned int *memory, unsi
             registers[std::stoi(instruction[1].substr(1))] = registers[std::stoi(instruction[2].substr(1))] >> operand2(instruction[3], registers);
             break;
         case HALT:
-            std::cout << "ici" << std::endl;
+
             *flag = f_HALT;
     }
 
@@ -155,7 +159,7 @@ std::string m2s(unsigned int *m, unsigned int sz) {
     return s;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
     std::cout << "AQA Assembly Interpreter\n";
     unsigned int registers[13] = {0,0,0,0,0,0,0,0,0,0,0,0,0};
@@ -164,17 +168,18 @@ int main()
         memory[i] = 0;
     }
     unsigned int flag = 0;
-    std::ifstream file("test.aqaasm");
+    std::ifstream file(argv[1]);
     for (std::string line; std::getline(file, line);) {
-        std::cout << line << std::endl;
+        std::cout << line << "\n";
         parse(line, registers, memory, &flag);
-        std::cout << "Registers: " << m2s(registers, 13) << std::endl;
-        std::cout << "Memory: " << m2s(memory, 256) << std::endl;
-        std::cout << "Flag: " << flagname(flag) << std::endl;
+        std::cout << "Registers: " << m2s(registers, 13) << "\n";
+        std::cout << "Memory: " << m2s(memory, 256) << "\n";
+        std::cout << "Flag: " << flagname(flag) << "\n";
         if (flag == f_HALT) {
-            std::cout << "halting due to instruction";
-            break;
+            std::cout << "halting due to instruction" << "\n";
+            return 0;
         }
     }
+    std::cout << "halting due to EOF" << "\n";
     return 0;
 }
