@@ -1,7 +1,4 @@
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <map>
+#include <bits/stdc++.h>
 
 // TODO implement branching, clean up code.
 
