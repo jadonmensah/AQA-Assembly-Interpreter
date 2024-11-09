@@ -1,11 +1,4 @@
-<<<<<<< HEAD
 #include <bits/stdc++.h>
-=======
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <map>
->>>>>>> c268c0ca8a6f2a8a765969d80f61b769f817e7e2
 
 // TODO implement branching, clean up code.
 
@@ -79,7 +72,7 @@ unsigned int operand2(std::string operand, unsigned int *registers) {
     }
 }
 
-void parse(std::string line, unsigned int *registers, unsigned int *memory, unsigned int *flag) {
+int parse(std::string line, unsigned int *registers, unsigned int *memory, unsigned int *flag) {
     std::string instruction[4] = {"","","",""};
     std::string delimiter = " ";
     int token_counter = 0;
@@ -89,6 +82,7 @@ void parse(std::string line, unsigned int *registers, unsigned int *memory, unsi
         line.erase(0, delimiter_position + delimiter.length());
         token_counter += 1;
     }
+
     switch (opcode(instruction[0])) {
         case LDR:
             registers[std::stoi(instruction[1].substr(1))] = memory[std::stoi(instruction[2])];
@@ -120,7 +114,7 @@ void parse(std::string line, unsigned int *registers, unsigned int *memory, unsi
             }
             break;
         case B:
-            // skip implementation for now;
+            // skip implementation for now
         case BEQ:
             // skip implementation for now;;
         case BNE:
@@ -148,10 +142,9 @@ void parse(std::string line, unsigned int *registers, unsigned int *memory, unsi
             registers[std::stoi(instruction[1].substr(1))] = registers[std::stoi(instruction[2].substr(1))] >> operand2(instruction[3], registers);
             break;
         case HALT:
-
             *flag = f_HALT;
     }
-
+    return 0;
 }
 
 std::string m2s(unsigned int *m, unsigned int sz) {
@@ -168,11 +161,12 @@ int main(int argc, char *argv[])
     std::cout << "AQA Assembly Interpreter\n";
     unsigned int registers[13] = {0,0,0,0,0,0,0,0,0,0,0,0,0};
     unsigned int memory[256];
-    for(int i = 0; i < 256; i++) {
-        memory[i] = 0;
-    }
+    std::memset(&memory, 0, 256 * sizeof(unsigned int));
     unsigned int flag = 0;
+    int label_start;
+    int res;
     std::ifstream file(argv[1]);
+    int linecount = 0;
     for (std::string line; std::getline(file, line);) {
         std::cout << line << "\n";
         parse(line, registers, memory, &flag);
@@ -183,6 +177,7 @@ int main(int argc, char *argv[])
             std::cout << "halting due to instruction" << "\n";
             return 0;
         }
+        linecount++;
     }
     std::cout << "halting due to EOF" << "\n";
     return 0;

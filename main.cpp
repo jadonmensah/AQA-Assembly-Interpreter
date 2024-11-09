@@ -1,182 +1,84 @@
+// AQA assembly interpreter - last updated 09/11/24 by Jadon Mensah
+// Notes: this is a non-functional outline of a bytecode vm interpreter
+
 #include <bits/stdc++.h>
+#define SZ_INST_MEM sizeof(int[1024])
+#define SZ_DATA_MEM sizeof(int[1024])
+#define NUM_REGS 12
 
-// TODO implement branching, clean up code.
+using namespace std;
 
-enum operations {
-    LDR = 1,
-    STR,
-    ADD,
-    SUB,
-    MOV,
-    CMP,
-    B,
-    BEQ,
-    BNE,
-    BGT,
-    BLT,
-    AND,
-    ORR,
-    EOR,
-    MVN,
-    LSL,
-    LSR,
-    HALT
-};
-
-enum flags {
-    f_EQ = 0,
-    f_GT,
-    f_LT,
-    f_HALT
-};
-
-std::string flagname(int flag) {
-    std::string flagnames[4] = {"EQ", "GT", "LT", "HALT"};
-    return flagnames[flag];
-}
-
-int opcode(std::string(s)) {
-    std::string s_lower;
-    for (int i = 0; i < s.length(); i++) {
-        s_lower += std::tolower(s.at(i), std::locale(""));
-    }
-    std::map<std::string, int> opcodes = {
-        {"ldr" ,  1},
-        {"str" ,  2},
-        {"add" ,  3},
-        {"sub" ,  4},
-        {"mov" ,  5},
-        {"cmp" ,  6},
-        {"b"   ,  7},
-        {"beq" ,  8},
-        {"bne" ,  9},
-        {"bgt" , 10},
-        {"blt" , 11},
-        {"and" , 12},
-        {"orr" , 13},
-        {"eor" , 14},
-        {"mvn" , 15},
-        {"lsl" , 16},
-        {"lsr" , 17},
-        {"halt", 18},
-    };
-    return opcodes[s_lower];
-}
-
-unsigned int operand2(std::string operand, unsigned int *registers) {
-    if (operand.substr(0, 1) == "#") {
-        return std::stoi(operand.substr(1));
-    }
-    else { // if (operand.substr(0, 1) == "R")
-        return registers[std::stoi(operand.substr(1,1))];
-    }
-}
-
-void parse(std::string line, unsigned int *registers, unsigned int *memory, unsigned int *flag) {
-    std::string instruction[4] = {"","","",""};
-    std::string delimiter = " ";
-    int token_counter = 0;
-    while ((token_counter < 4) && (line.length() > 0)) {
-        std::size_t delimiter_position = line.find(delimiter);
-        instruction[token_counter] = line.substr(0, delimiter_position);
-        line.erase(0, delimiter_position + delimiter.length());
-        token_counter += 1;
-    }
-    switch (opcode(instruction[0])) {
-        case LDR:
-            registers[std::stoi(instruction[1].substr(1))] = memory[std::stoi(instruction[2])];
-            break;
-        case STR:
-            memory[std::stoi(instruction[2])] = registers[std::stoi(instruction[1].substr(1))];
-            break;
-        case ADD:
-            registers[std::stoi(instruction[1].substr(1))] = registers[std::stoi(instruction[2].substr(1))] + operand2(instruction[3], registers);
-            break;
-        case SUB:
-            registers[std::stoi(instruction[1].substr(1))] = registers[std::stoi(instruction[2].substr(1))] - operand2(instruction[3], registers);
-            break;
-        case MOV:
-
-
-            registers[std::stoi(instruction[1].substr(1))] = operand2(instruction[2], registers);
-
-            break;
-        case CMP:
-            if (registers[std::stoi(instruction[1].substr(1))] == operand2(instruction[2], registers)) {
-                *flag = f_EQ;
-            }
-            else if (registers[std::stoi(instruction[1].substr(1))] > operand2(instruction[2], registers)) {
-                *flag = f_GT;
-            }
-            else {
-                *flag = f_LT;
-            }
-            break;
-        case B:
-            // skip implementation for now;
-        case BEQ:
-            // skip implementation for now;;
-        case BNE:
-            // skip implementation for now;
-        case BGT:
-            // skip implementation for now;
-        case BLT:
-            // skip implementation for now;
-        case AND:
-            registers[std::stoi(instruction[1].substr(1))] = registers[std::stoi(instruction[2].substr(1))] & operand2(instruction[3], registers);
-            break;
-        case ORR:
-            registers[std::stoi(instruction[1].substr(1))] = registers[std::stoi(instruction[2].substr(1))] | operand2(instruction[3], registers);
-            break;
-        case EOR:
-            registers[std::stoi(instruction[1].substr(1))] = registers[std::stoi(instruction[2].substr(1))] ^ operand2(instruction[3], registers);
-            break;
-        case MVN:
-            registers[std::stoi(instruction[1].substr(1))] = ~(operand2(instruction[2], registers));
-            break;
-        case LSL:
-            registers[std::stoi(instruction[1].substr(1))] = registers[std::stoi(instruction[2].substr(1))] << operand2(instruction[3], registers);
-            break;
-        case LSR:
-            registers[std::stoi(instruction[1].substr(1))] = registers[std::stoi(instruction[2].substr(1))] >> operand2(instruction[3], registers);
-            break;
-        case HALT:
-
-            *flag = f_HALT;
-    }
-
-}
-
-std::string m2s(unsigned int *m, unsigned int sz) {
-    std::string s;
-    for (int i = 0; i < sz; i++) {
-        s += std::to_string(m[i]);
-        s += " | ";
-    }
-    return s;
+int bytecode(string line, map<string, int> label_table)
+{
+    /* 1 operation = 32 bits for convenience, but this is memory inefficient.
+     * From least significant bit (0) to most significant (31):
+     * [0,  3] - opcode (NB: BNE, BGT not needed; so 16 instructions, not 18)
+     *                  (preprocessing is needed to convert BNEs and BGTs)
+     *         - 0000 HALT
+     *         - 0001 LDR
+     *         - 0010 STR
+     *         - 0011 ADD
+     *         - 0100 SUB
+     *         - 0101 MOV
+     *         - 0110 CMP
+     *         - 0111 B
+     *         - 1000 BEQ
+     *         - 1001 BLT
+     *         - 1010 AND
+     *         - 1011 ORR
+     *         - 1100 EOR
+     *         - 1101 MVN
+     *         - 1110 LSL
+     *         - 1111 LSR
+     * [4, 31] - instruction-dependent operand bits - either:
+     *         - <register>, <memory ref>
+     *         - <register>, <immediate>
+     *         - <register>, <register>
+     *         - <register>, <register>, <immediate>
+     *         - <register>, <register>, <register>
+     *         - <label>
+     * <register> - 4 bits, only registers 0 through 12 (0b1100) used
+     * <memory ref> - 24 bits; highest 4 bits = 1111 => 20 significant bits
+     * <immediate> - 20 bits; highest 4 bits = 1110 => 16 significant bits
+     * <label> - 28 bits; highest 4 bits = 1101 => 24 significant bits
+     */
 }
 
 int main(int argc, char *argv[])
 {
-    std::cout << "AQA Assembly Interpreter\n";
-    unsigned int registers[13] = {0,0,0,0,0,0,0,0,0,0,0,0,0};
-    unsigned int memory[256];
-    for(int i = 0; i < 256; i++) {
-        memory[i] = 0;
-    }
-    unsigned int flag = 0;
+    // initialise various things we'll need later
+    int *instruction_memory = malloc(SZ_INST_MEM);
+    int *data_memory = malloc(SZ_DATA_MEM);
+    memset(data_memory, 0, SZ_DATA_MEM);
+    int regs[NUM_REGS];
+    map<string, int> label_table;
+    int instruction_counter, length;
+
+    // iterate through lines in file specified by first argument
     std::ifstream file(argv[1]);
-    for (std::string line; std::getline(file, line);) {
-        std::cout << line << "\n";
-        parse(line, registers, memory, &flag);
-        std::cout << "Registers: " << m2s(registers, 13) << "\n";
-        std::cout << "Memory: " << m2s(memory, 256) << "\n";
-        std::cout << "Flag: " << flagname(flag) << "\n";
-        if (flag == f_HALT) {
-            std::cout << "halting due to instruction" << "\n";
-            return 0;
+    for (std::string line; std::getline(file, line);)
+    {
+        length = line.length();
+        // if line is instruction, write bytecode representation to memory
+        if (line.at(length - 1) != ':')
+        {
+            instruction_memory[instruction_counter] = bytecode(line, label_table);
+            instruction_counter++;
+        }
+        else
+        {
+            // line is a label. store address of label so we can resolve later
+            label_table[line.substr(0, length - 1)] = instruction_counter + 1;
         }
     }
-    std::cout << "halting due to EOF" << "\n";
+    // once file has been parsed, execute from instruction_memory[0] until HALT
+    for(int ip = 0; // instruction pointer
+            instruction_memory[ip] != o_HALT;
+            ip += run(instruction_memory[ip], ip, regs, data_memory, &flag);)
+    {
+        // display both instruction and data memories, registers, flag and ip
+    }
+    free(instruction_memory);
+    free(data_memory);
     return 0;
 }
