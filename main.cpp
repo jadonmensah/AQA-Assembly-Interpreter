@@ -48,9 +48,9 @@ int main(int argc, char *argv[])
 {
     // initialise various things we'll need later
     int *instruction_memory = malloc(SZ_INST_MEM);
-    int *data_memory = malloc(SZ_DATA_MEM);
+    int16_t *data_memory = malloc(SZ_DATA_MEM);
     memset(data_memory, 0, SZ_DATA_MEM);
-    int regs[NUM_REGS];
+    int16_t regs[NUM_REGS];
     map<string, int> label_table;
     int instruction_counter, length;
 
