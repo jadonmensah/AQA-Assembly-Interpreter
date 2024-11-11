@@ -1,47 +1,130 @@
-// AQA assembly interpreter - last updated 09/11/24 by Jadon Mensah
-// Notes: this is a non-functional outline of a bytecode vm interpreter
+// AQA assembly interpreter - last updated 11/11/24 by Jadon Mensah
+// Notes: implemented bytecode function. TODO implement run function
 
 #include <bits/stdc++.h>
 #define SZ_INST_MEM sizeof(int[1024])
-#define SZ_DATA_MEM sizeof(int[1024])
-#define NUM_REGS 12
+#define SZ_DATA_MEM sizeof(int16_t[1024]) // max 1048576 addressable locations
+#define NUM_REGS 12 // maximum of 13 addressable locations
 
 using namespace std;
+
+enum opcodes
+{
+    HALT = 0,
+    LDR,
+    STR,
+    ADD,
+    SUB,
+    MOV,
+    CMP,
+    B,
+    BEQ,
+    BLT,
+    AND,
+    ORR,
+    EOR,
+    MVN,
+    LSL,
+    LSR,
+};
+
+char mnemonic2opcode(string(s))
+{
+    string s_lower;
+    for (int i = 0; i < s.length(); i++)
+    {
+        s_lower += std::tolower(s.at(i), std::locale(""));
+    }
+    std::map<std::string, int> opcodes_local =
+    {
+        {"ldr",    LDR},
+        {"str",    STR},
+        {"add",    ADD},
+        {"sub",    SUB},
+        {"mov",    MOV},
+        {"cmp",    CMP},
+        {"b",        B},
+        {"beq",    BEQ},
+        {"blt",    BLT},
+        {"and",    AND},
+        {"orr",    ORR},
+        {"eor",    EOR},
+        {"mvn",    MVN},
+        {"lsl",    LSL},
+        {"lsr",    LSR},
+        {"halt",  HALT},
+    };
+    return opcodes_local[s_lower];
+}
 
 int bytecode(string line, map<string, int> label_table)
 {
     /* 1 operation = 32 bits for convenience, but this is memory inefficient.
-     * From least significant bit (0) to most significant (31):
+     * From most significant bit (0) to least significant (31):
      * [0,  3] - opcode (NB: BNE, BGT not needed; so 16 instructions, not 18)
      *                  (preprocessing is needed to convert BNEs and BGTs)
-     *         - 0000 HALT
-     *         - 0001 LDR
-     *         - 0010 STR
-     *         - 0011 ADD
-     *         - 0100 SUB
-     *         - 0101 MOV
-     *         - 0110 CMP
-     *         - 0111 B
-     *         - 1000 BEQ
-     *         - 1001 BLT
-     *         - 1010 AND
-     *         - 1011 ORR
-     *         - 1100 EOR
-     *         - 1101 MVN
-     *         - 1110 LSL
-     *         - 1111 LSR
      * [4, 31] - instruction-dependent operand bits - either:
-     *         - <register>, <memory ref>
-     *         - <register>, <immediate>
-     *         - <register>, <register>
-     *         - <register>, <register>, <immediate>
-     *         - <register>, <register>, <register>
+     *         - <register1>, <memory ref>
+     *         - <register1>, <immediate1>
+     *         - <register1>, <register-val1>
+     *         - <register1>, <register2>, <immediate2>
+     *         - <register1>, <register2>, <register-val2>
      *         - <label>
      * <register> - 4 bits, only registers 0 through 12 (0b1100) used
-     * <memory ref> - 24 bits; highest 4 bits = 1111 => 20 significant bits
-     * <immediate> - 20 bits; highest 4 bits = 1110 => 16 significant bits
-     * <label> - 28 bits; highest 4 bits = 1101 => 24 significant bits
+     * <memory ref> - 24 bits; highest 8 bits = 10101010 => 16 significant bits
+     * <immediate1> - 24 bits; highest 8 bits = 00000000 => 16 significant bits
+     * <immediate2> - 20 bits; highest 4 bits = 0000 => 16 significant bits
+     * <register-val1> - 24 bits; highest 20 bits = 0xFFFFF => 4 significant bits
+     * <register-val2> - 20 bits; highest 16 bits = 0xFFFF => 4 significant bits
+     * <label> - 28 bits; highest 12 bits = 0x111 => 16 significant bits
      */
+    string instruction[4] = {"00","00","00","00"};
+    string delimiter = " ";
+    int token_counter = 0;
+    while ((token_counter < 4) && (line.length() > 0))
+    {
+        std::size_t delimiter_position = line.find(delimiter);
+        instruction[token_counter] = line.substr(0, delimiter_position);
+        line.erase(0, delimiter_position + delimiter.length());
+        token_counter += 1;
+    }
+    int operation;
+    switch (mnemonic2opcode(instruction[0]))
+    {
+    default: // Assuming inputs are consistent with specification
+        operation = mnemonic2opcode(instruction[0]) << 28;
+        int register1 = stoi(instruction[1].substr(1)) << 24;
+        int register2 = stoi(instruction[2].substr(1)) << 20;
+        int registerval1 = (stoi(instruction[2].substr(1)) | 0x00FFFFF0);
+        int registerval2 = (stoi(instruction[3].substr(1)) | 0x000FFFF0);
+        int immediate1 = stoi(instruction[2].substr(1));
+        int immediate2 = stoi(instruction[3].substr(1));
+        int memory_ref = stoi(instruction[2]) | 0x00AA0000;
+        int label = label_table[instruction[1]] | 0x01110000;
+    case LDR: case STR:
+        operation |= register1 | memory_ref;
+        break;
+    case ADD: case SUB: case AND: case ORR: case EOR: case LSL: case LSR:
+        operation |= register1 | register2;
+        if (instruction[3].at(0) == 'R') {
+            operation |= registerval2;
+        } else {
+            operation |= immediate2;
+        }
+        break;
+    case MOV: case CMP: case MVN:
+        operation |= register1;
+        if (instruction[2].at(0) == 'R') {
+            operation |= registerval1;
+        } else {
+            operation |= immediate1;
+        }
+        break;
+    case B: case BEQ: case BLT:
+        operation |= label;
+        break;
+    }
+    return operation;
 }
 
 int main(int argc, char *argv[])
@@ -73,7 +156,7 @@ int main(int argc, char *argv[])
     }
     // once file has been parsed, execute from instruction_memory[0] until HALT
     for(int ip = 0; // instruction pointer
-            instruction_memory[ip] != o_HALT;
+            instruction_memory[ip] != HALT;
             ip += run(instruction_memory[ip], ip, regs, data_memory, &flag);)
     {
         // display both instruction and data memories, registers, flag and ip
