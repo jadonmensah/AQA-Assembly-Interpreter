@@ -1,5 +1,5 @@
-// AQA assembly interpreter - last updated 12/11/24 by Jadon Mensah
-// Notes: implemented run function. program compiles - now need to fix bugs!
+// AQA assembly interpreter - last updated 20/11/24 by Jadon Mensah
+// Notes: TODO fix branching
 
 #include <bits/stdc++.h>
 #define SZ_INST_MEM 1024
@@ -7,6 +7,14 @@
 #define NUM_REGS 13 // maximum of 13 addressable locations
 
 using namespace std;
+
+string bindump(int x) {
+    string res = "";
+    for(int i = 0; i < 32; i++) {
+        res += ((x >> i) & 1) + '0';
+    }
+    return string(res.rbegin(), res.rend());
+}
 
 enum opcodes
 {
@@ -97,6 +105,7 @@ int bytecode(string line, map<string, int> label_table)
         instruction[token_counter] = line.substr(0, delimiter_position);
         line.erase(0, delimiter_position + delimiter.length());
         token_counter += 1;
+        cout << line.substr(0, delimiter_position) << "\n";
     }
 
     // Assuming inputs are consistent with specification
@@ -140,6 +149,7 @@ int bytecode(string line, map<string, int> label_table)
         operation |= label;
         break;
     }
+    cout << bindump(operation) << "\n";
     return operation;
 }
 
@@ -148,7 +158,9 @@ int run(int inst, int ip, int16_t *regs, int16_t *data_memory, char *flag)
     // modify regs/memory/flag as needed
     // set ip increment
     // select instruction by opcode & modify regs/memory/flag as necessary
+
     int opcode = (inst >> 28) & 0xF;
+    cout << bindump(opcode) << "\n";
     int register1 = (inst >> 24) & 0xF;
     int register2 = (inst >> 20) & 0xF;
     int registerval = inst & 0xF;
@@ -174,7 +186,7 @@ int run(int inst, int ip, int16_t *regs, int16_t *data_memory, char *flag)
         regs[register1] = regs[register2] - operand2;
         break;
     case MOV:
-        regs[register2] = operand2;
+        regs[register1] = operand2;
         break;
     case CMP:
         *flag = (regs[register1] == operand2) & 0x1
@@ -190,22 +202,25 @@ int run(int inst, int ip, int16_t *regs, int16_t *data_memory, char *flag)
         if (*flag & 0b10) return jump_dest - ip;
         break;
     case AND:
-        regs[register1] == regs[register2] & operand2;
+        regs[register1] = regs[register2] & operand2;
         break;
     case ORR:
-        regs[register1] == regs[register2] | operand2;
+        regs[register1] = regs[register2] | operand2;
+        cout << bindump(regs[register1]) << "\n";
+        cout << bindump(regs[register2]) << "\n";
+        cout << bindump(operand2) << "\n";
         break;
     case EOR:
-        regs[register1] == regs[register2] ^ operand2;
+        regs[register1] = regs[register2] ^ operand2;
         break;
     case MVN:
-        regs[register1] == ~operand2;
+        regs[register1] = ~operand2;
         break;
     case LSL:
-        regs[register1] == regs[register2] << operand2;
+        regs[register1] = regs[register2] << operand2;
         break;
     case LSR:
-        regs[register1] == regs[register2] >> operand2;
+        regs[register1] = regs[register2] >> operand2;
         break;
     case HALT:
         // this case should not be reachable
@@ -215,19 +230,22 @@ int run(int inst, int ip, int16_t *regs, int16_t *data_memory, char *flag)
     return 1;
 }
 
+
+
 int main(int argc, char *argv[])
 {
     // initialise various things we'll need later
-    int *instruction_memory = new int[SZ_INST_MEM];
-    int16_t *data_memory = new int16_t[SZ_DATA_MEM];
-    fill(data_memory, data_memory + SZ_DATA_MEM, 0);
-    int16_t regs[NUM_REGS];
+    int instruction_memory[SZ_INST_MEM] = {0};
+    int16_t data_memory[SZ_DATA_MEM] = {0};
+    int16_t regs[NUM_REGS] = {0};
     map<string, int> label_table;
     int instruction_counter, length;
     char flag = 0; // LSB - equal flag, 2nd least significant bit - LT flag
 
     // iterate through lines in file specified by first argument
     std::ifstream file(argv[1]);
+
+     cout << "Parsing instructions...\n";
     for (std::string line; std::getline(file, line);)
     {
         length = line.length();
@@ -243,20 +261,22 @@ int main(int argc, char *argv[])
             label_table[line.substr(0, length - 1)] = instruction_counter + 1;
         }
     }
+
+     cout << "Executing...\n";
     // once file has been parsed, execute from instruction_memory[0] until HALT
-    for(int ip = 0; // instruction pointer
-            instruction_memory[ip] != HALT;
-            ip += run(instruction_memory[ip], ip, regs, data_memory, &flag))
+    int ip = 0; // instruction pointer
+    while(instruction_memory[ip] != HALT)
     {
+        int step = run(instruction_memory[ip], ip, regs, data_memory, &flag);
         // display data memory, registers, flag and ip
+        cout << "Instruction:  " << bindump(instruction_memory[ip]) << "\n";
         cout << "Registers: " << memdisplay(regs, NUM_REGS) << "\n";
         cout << "Memory: "
              << memdisplay(data_memory, SZ_DATA_MEM) << "\n";
-        cout << "Equality flag: " << (flag & 0x1) << "\n";
-        cout << "Less than flag: " << (flag & 0b10 >> 1) << "\n";
+        cout << "Equality flag: " << (flag & 1) << "\n";
+        cout << "Less than flag: " << ((flag & 2) >> 1) << "\n";
+        ip += step;
 
     }
-    delete[] instruction_memory;
-    delete[] data_memory;
     return 0;
 }
