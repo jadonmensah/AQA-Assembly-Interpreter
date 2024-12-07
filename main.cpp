@@ -1,4 +1,4 @@
-// AQA assembly interpreter - last updated 20/11/24 by Jadon Mensah
+// AQA assembly interpreter - last updated 21/11/24 by Jadon Mensah
 // Notes: TODO fix branching
 
 #include <bits/stdc++.h>
@@ -75,6 +75,15 @@ string memdisplay(int16_t *m, unsigned int sz)
     return s;
 }
 
+void splitline(string line, string *instruction) {
+    stringstream ss(line);
+    string word;
+    int counter;
+    for (int i = 0; (ss >> word) && (i < 4); i++) {
+        instruction[i] = word;
+    }
+}
+
 int bytecode(string line, map<string, int> label_table)
 {
     /* 1 operation = 32 bits for convenience, but this is memory inefficient.
@@ -97,26 +106,31 @@ int bytecode(string line, map<string, int> label_table)
      * <label> - 28 bits; highest 12 bits = 0x111 => 16 significant bits
      */
     string instruction[4] = {"00","00","00","00"};
-    string delimiter = " ";
-    int token_counter = 0;
-    while ((token_counter < 4) && (line.length() > 0))
-    {
-        std::size_t delimiter_position = line.find(delimiter);
-        instruction[token_counter] = line.substr(0, delimiter_position);
-        line.erase(0, delimiter_position + delimiter.length());
-        token_counter += 1;
-        cout << line.substr(0, delimiter_position) << "\n";
-    }
+    cout << line << "\n";
+    splitline(line, instruction);
 
     // Assuming inputs are consistent with specification
     int operation = mnemonic2opcode(instruction[0]) << 28;
-    int register1 = stoi(instruction[1].substr(1)) << 24;
-    int register2 = stoi(instruction[2].substr(1)) << 20;
-    int registerval1 = (stoi(instruction[2].substr(1)) | 0x00FFFFF0);
-    int registerval2 = (stoi(instruction[3].substr(1)) | 0x000FFFF0);
-    int immediate1 = stoi(instruction[2].substr(1));
-    int immediate2 = stoi(instruction[3].substr(1));
+    int register1;
+    int register2;
+    int registerval1;
+    int registerval2;
+    int immediate1;
+    int immediate2;
     int memory_ref;
+
+
+    if ((operation >> 28) != B) {
+        register1 = stoi(instruction[1].substr(1)) << 24;
+        register2 = stoi(instruction[2].substr(1)) << 20;
+        registerval1 = (stoi(instruction[2].substr(1)) | 0x00FFFFF0);
+        registerval2 = (stoi(instruction[3].substr(1)) | 0x000FFFF0);
+        immediate1 = stoi(instruction[2].substr(1));
+        immediate2 = stoi(instruction[3].substr(1));
+    }
+
+
+
     try {
         memory_ref = stoi(instruction[2]) | 0x00AA0000;
     } catch (...) {
